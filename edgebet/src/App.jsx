@@ -10,7 +10,10 @@ import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import { useSettings } from './hooks/useSettings';
 import { useBets } from './hooks/useBets';
+import { logEnvStatus } from './utils/apiService';
 import './App.css';
+
+logEnvStatus();
 
 const NAV = [
   { id: 'bets', label: 'Value Bets', icon: '◎' },
