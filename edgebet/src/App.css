@@ -1,0 +1,154 @@
+/* ─────────────────────────────────────────────
+   App.css — EdgeBet global styles
+   ───────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0f0f0f;
+  color: #f0f0f0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ─────────────────────────────────── */
+.app-root {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #141414;
+}
+
+/* ── Top bar ─────────────────────────────────── */
+.topbar {
+  background: #1a1a1a;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f0f0f0;
+  letter-spacing: -0.5px;
+}
+
+.logo span {
+  color: #1D9E75;
+}
+
+.bankroll-pill {
+  font-size: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 4px 12px;
+  color: #888;
+}
+
+.bankroll-pill strong {
+  color: #f0f0f0;
+}
+
+/* ── Navigation ──────────────────────────────── */
+.nav {
+  display: flex;
+  background: #1a1a1a;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  position: sticky;
+  top: 49px;
+  z-index: 9;
+}
+
+.nav-btn {
+  flex: 1;
+  padding: 10px 4px;
+  font-size: 11px;
+  color: #666;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: color 0.15s;
+}
+
+.nav-btn.active {
+  color: #1D9E75;
+  border-bottom-color: #1D9E75;
+}
+
+.nav-icon {
+  font-size: 16px;
+}
+
+.nav-label {
+  font-size: 10px;
+}
+
+/* ── Main content ────────────────────────────── */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #0f0f0f;
+}
+
+/* ── Recharts tooltip override ───────────────── */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: #1a1a1a !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: #f0f0f0 !important;
+  font-size: 12px !important;
+}
+
+/* ── Input / select dark mode ────────────────── */
+input[type="number"],
+input[type="text"],
+select {
+  color-scheme: dark;
+}
+
+/* ── Range slider ────────────────────────────── */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.15);
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #1D9E75;
+  cursor: pointer;
+}
+
+/* ── Scrollbar ───────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+}
