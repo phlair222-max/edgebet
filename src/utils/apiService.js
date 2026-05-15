@@ -100,13 +100,9 @@ export async function fetchTodaysFixtures(enabledLeagues = {}) {
     if (enabledLeagues[league.name] === false) continue;
     try {
       const matches = await fetchFixturesForLeague(league.code, league.name);
-      const enriched = await Promise.all(
-        matches.map(async (m) => {
-          const [homeStats, awayStats] = await Promise.all([
-            fetchTeamRecentForm(m.homeTeam?.id),
-            fetchTeamRecentForm(m.awayTeam?.id),
-          ]);
-          return transformMatch(m, league.name, homeStats, awayStats);
+      const enriched = matches.map((m) =>
+  transformMatch(m, league.name, null, null)
+);
         })
       );
       results.push(...enriched.filter(Boolean));
