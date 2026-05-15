@@ -1,9 +1,3 @@
-// ─────────────────────────────────────────────
-// components/DailyBets.jsx
-// Fetches real fixtures from API-Football
-// Falls back to mock data only if API fails
-// ─────────────────────────────────────────────
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { analyseFixture } from '../utils/poissonModel';
 import { fetchTodaysFixtures, ENV } from '../utils/apiService';
@@ -20,12 +14,12 @@ export default function DailyBets({ settings, onLogBet, stats }) {
     setLoading(true);
     setErrors([]);
 
-    // If no API key at all — use mock immediately
-    if (!ENV.apiFootball) {
-      console.warn('No API-Football key — using mock data');
+    if (!ENV.footballData) {
+      console.warn('No footballData key — using mock data');
       setFixtures(mockFixtures);
       setUsingMock(true);
       setLoading(false);
+      setLastFetched(new Date().toLocaleTimeString());
       return;
     }
 
@@ -37,13 +31,11 @@ export default function DailyBets({ settings, onLogBet, stats }) {
         setUsingMock(false);
         setErrors(apiErrors);
       } else if (apiErrors.length > 0) {
-        // API returned errors — fall back to mock
         console.warn('API errors — falling back to mock data', apiErrors);
         setFixtures(mockFixtures);
         setUsingMock(true);
         setErrors(apiErrors);
       } else {
-        // API worked but genuinely no games today
         setFixtures([]);
         setUsingMock(false);
       }
@@ -75,10 +67,9 @@ export default function DailyBets({ settings, onLogBet, stats }) {
   return (
     <div style={{ padding: '12px' }}>
 
-      {/* ── Status bar ── */}
       {usingMock && (
         <div style={{ background: '#2a1f00', border: '0.5px solid #BA7517', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#ffcc44', marginBottom: '12px', lineHeight: 1.5 }}>
-          ⚠️ Showing mock data — {ENV.apiFootball ? 'API returned no fixtures' : 'API key not found'}
+          ⚠️ Showing mock data — {ENV.footballData ? 'API returned no fixtures today' : 'API key not found'}
           {errors.length > 0 && (
             <div style={{ marginTop: '4px', fontSize: '11px', opacity: 0.8 }}>
               {errors.map((e, i) => <div key={i}>{e.league}: {e.error}</div>)}
@@ -89,27 +80,23 @@ export default function DailyBets({ settings, onLogBet, stats }) {
 
       {errors.length > 0 && !usingMock && (
         <div style={{ background: '#1a0000', border: '0.5px solid #E24B4A', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#ff8888', marginBottom: '12px' }}>
-          ⚠️ Some leagues failed to load:
+          ⚠️ Some leagues failed:
           {errors.map((e, i) => <div key={i} style={{ marginTop: '3px' }}>{e.league}: {e.error}</div>)}
         </div>
       )}
 
-      {/* ── Metrics ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px', marginBottom: '16px' }}>
         <MetricCard label="Today's bets" value={loading ? '…' : valueBets.length} color="#1D9E75" />
         <MetricCard label="Monthly ROI" value={`${stats.roi > 0 ? '+' : ''}${stats.roi}%`} color={stats.roi >= 0 ? '#1D9E75' : '#E24B4A'} />
         <MetricCard label="Total P/L" value={`₦${stats.totalPL.toLocaleString()}`} color={stats.totalPL >= 0 ? '#1D9E75' : '#E24B4A'} />
       </div>
 
-      {/* ── Section title ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
         <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
           Today's fixtures — over 2.5 goals
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {lastFetched && (
-            <span style={{ fontSize: '10px', color: '#555' }}>updated {lastFetched}</span>
-          )}
+          {lastFetched && <span style={{ fontSize: '10px', color: '#555' }}>updated {lastFetched}</span>}
           <button onClick={loadFixtures} disabled={loading}
             style={{ fontSize: '11px', background: 'rgba(29,158,117,0.15)', color: '#1D9E75', border: '0.5px solid #1D9E75', borderRadius: '6px', padding: '4px 10px', cursor: loading ? 'default' : 'pointer' }}>
             {loading ? '…' : '↻ Refresh'}
@@ -117,17 +104,15 @@ export default function DailyBets({ settings, onLogBet, stats }) {
         </div>
       </div>
 
-      {/* ── Loading state ── */}
       {loading && (
         <div style={{ textAlign: 'center', padding: '40px 20px' }}>
           <div style={{ fontSize: '28px', marginBottom: '12px', animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</div>
           <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>Scanning today's fixtures…</div>
-          <div style={{ fontSize: '12px', color: '#555', marginTop: '6px' }}>Fetching from API-Football</div>
+          <div style={{ fontSize: '12px', color: '#555', marginTop: '6px' }}>Fetching from football-data.org</div>
           <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
 
-      {/* ── No games today ── */}
       {!loading && analysed.length === 0 && (
         <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-secondary)' }}>
           <div style={{ fontSize: '28px', marginBottom: '12px' }}>📅</div>
@@ -136,7 +121,6 @@ export default function DailyBets({ settings, onLogBet, stats }) {
         </div>
       )}
 
-      {/* ── Bet cards ── */}
       {!loading && analysed.map((f) => (
         <BetCard key={f.id} fixture={f} onLogBet={onLogBet} />
       ))}
@@ -159,23 +143,11 @@ function BetCard({ fixture: f, onLogBet }) {
   const badgeColor = f.isValue ? '#3B6D11' : f.isBorderline ? '#854F0B' : '#A32D2D';
 
   return (
-    <div style={{
-      background: 'var(--color-background-primary)',
-      borderRadius: '12px',
-      border: '0.5px solid var(--color-border-tertiary)',
-      borderLeft: `3px solid ${borderColor}`,
-      padding: '14px',
-      marginBottom: '10px',
-      opacity: f.isValue || f.isBorderline ? 1 : 0.5,
-    }}>
+    <div style={{ background: 'var(--color-background-primary)', borderRadius: '12px', border: '0.5px solid var(--color-border-tertiary)', borderLeft: `3px solid ${borderColor}`, padding: '14px', marginBottom: '10px', opacity: f.isValue || f.isBorderline ? 1 : 0.5 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
         <div>
-          <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-            {f.home} vs {f.away}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-            {f.league} · {f.time} · Over 2.5 Goals
-          </div>
+          <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{f.home} vs {f.away}</div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>{f.league} · {f.time} · Over 2.5 Goals</div>
         </div>
         <div style={{ fontSize: '12px', fontWeight: 500, padding: '3px 10px', borderRadius: '20px', background: badgeBg, color: badgeColor, whiteSpace: 'nowrap' }}>
           {f.ev > 0 ? '+' : ''}{f.ev.toFixed(1)}% EV
@@ -202,8 +174,7 @@ function BetCard({ fixture: f, onLogBet }) {
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
               Kelly stake: <strong style={{ color: 'var(--color-text-primary)' }}>₦{f.stake.toLocaleString()}</strong>
             </div>
-            <button onClick={() => onLogBet(f)}
-              style={{ fontSize: '12px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontWeight: 500 }}>
+            <button onClick={() => onLogBet(f)} style={{ fontSize: '12px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontWeight: 500 }}>
               Log this bet
             </button>
           </>
