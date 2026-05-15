@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { checkApiStatus, ENV } from '../utils/apiService';
 
-const LEAGUES = ['Eliteserien', 'Allsvenskan', 'Veikkausliiga', 'Eredivisie'];
+const LEAGUES = ['Eredivisie', 'Bundesliga', 'Ligue 1', 'Championship'];
 
 export default function Settings({ settings, onUpdateBankroll, onUpdateKelly, onUpdateMinEV, onToggleLeague }) {
   const [apiStatus, setApiStatus] = useState(null);
