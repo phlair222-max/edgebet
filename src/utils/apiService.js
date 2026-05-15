@@ -1,10 +1,4 @@
-// ─────────────────────────────────────────────
-// utils/apiService.js
-// Uses football-data.org — free, current season
-// ─────────────────────────────────────────────
-
 export const ENV = {
-  export const ENV = {
   footballData: process.env.REACT_APP_FOOTBALLDATA_KEY || '36f65f997b7c4e698fe90b8741745505',
   oddsApi: process.env.REACT_APP_ODDS_API_KEY || '',
   supabaseUrl: process.env.REACT_APP_SUPABASE_URL || '',
@@ -33,16 +27,12 @@ function today() {
 
 async function fetchFixturesForLeague(code, leagueName) {
   if (!ENV.footballData) throw new Error('No API key');
-
   const url = `https://api.football-data.org/v4/matches?competitions=${code}&dateFrom=${today()}&dateTo=${today()}`;
   console.log(`Fetching ${leagueName}...`, url);
-
   const res = await fetch(url, {
     headers: { 'X-Auth-Token': ENV.footballData },
   });
-
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-
   const data = await res.json();
   console.log(`${leagueName}: ${data.matches?.length || 0} fixtures`);
   return data.matches || [];
@@ -59,44 +49,29 @@ async function fetchTeamRecentForm(teamId) {
     const data = await res.json();
     const matches = data.matches || [];
     if (matches.length === 0) return null;
-
     let scored = 0;
     let conceded = 0;
-
     matches.forEach((m) => {
       const isHome = m.homeTeam?.id === teamId;
       const homeGoals = m.score?.fullTime?.home ?? 0;
       const awayGoals = m.score?.fullTime?.away ?? 0;
-      if (isHome) {
-        scored += homeGoals;
-        conceded += awayGoals;
-      } else {
-        scored += awayGoals;
-        conceded += homeGoals;
-      }
+      if (isHome) { scored += homeGoals; conceded += awayGoals; }
+      else { scored += awayGoals; conceded += homeGoals; }
     });
-
     return {
       avgScored: +(scored / matches.length).toFixed(2),
       avgConceded: +(conceded / matches.length).toFixed(2),
     };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function transformMatch(match, leagueName, homeStats, awayStats) {
   const home = match.homeTeam?.name;
   const away = match.awayTeam?.name;
   if (!home || !away) return null;
-
   const kickoff = match.utcDate
-    ? new Date(match.utcDate).toLocaleTimeString('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+    ? new Date(match.utcDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
     : '--:--';
-
   return {
     id: match.id,
     home,
@@ -118,19 +93,13 @@ export async function fetchTodaysFixtures(enabledLeagues = {}) {
   const errors = [];
 
   if (!ENV.footballData) {
-    return {
-      fixtures: [],
-      errors: [{ league: 'All', error: 'No API key — add REACT_APP_FOOTBALLDATA_KEY in Vercel' }],
-    };
+    return { fixtures: [], errors: [{ league: 'All', error: 'No API key' }] };
   }
 
   for (const league of LEAGUES) {
     if (enabledLeagues[league.name] === false) continue;
-
     try {
       const matches = await fetchFixturesForLeague(league.code, league.name);
-
-      // Fetch team form for each match in parallel
       const enriched = await Promise.all(
         matches.map(async (m) => {
           const [homeStats, awayStats] = await Promise.all([
@@ -140,7 +109,6 @@ export async function fetchTodaysFixtures(enabledLeagues = {}) {
           return transformMatch(m, league.name, homeStats, awayStats);
         })
       );
-
       results.push(...enriched.filter(Boolean));
     } catch (err) {
       console.error(`Failed ${league.name}:`, err.message);
@@ -155,11 +123,7 @@ export async function checkApiStatus() {
   const status = {
     footballData: { present: !!ENV.footballData, working: false, error: null },
     oddsApi: { present: !!ENV.oddsApi, working: false, error: null },
-    supabase: {
-      present: !!(ENV.supabaseUrl && ENV.supabaseKey),
-      working: false,
-      error: null,
-    },
+    supabase: { present: !!(ENV.supabaseUrl && ENV.supabaseKey), working: false, error: null },
   };
 
   if (ENV.footballData) {
@@ -170,7 +134,7 @@ export async function checkApiStatus() {
       if (res.ok) {
         status.footballData.working = true;
       } else {
-        status.footballData.error = `HTTP ${res.status} — check your key`;
+        status.footballData.error = `HTTP ${res.status}`;
       }
     } catch (e) {
       status.footballData.error = e.message;
@@ -179,9 +143,7 @@ export async function checkApiStatus() {
 
   if (ENV.oddsApi) {
     try {
-      const res = await fetch(
-        `https://api.the-odds-api.com/v4/sports/?apiKey=${ENV.oddsApi}`
-      );
+      const res = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${ENV.oddsApi}`);
       if (res.ok) {
         status.oddsApi.working = true;
         status.oddsApi.requestsRemaining = res.headers.get('x-requests-remaining');
