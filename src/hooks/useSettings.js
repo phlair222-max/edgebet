@@ -11,11 +11,11 @@ const DEFAULTS = {
   kellyFraction: 0.25,
   minEV: 5,
   leagues: {
-    Eliteserien: true,
-    Allsvenskan: true,
-    Veikkausliiga: true,
-    Eredivisie: true,
-  },
+  Eredivisie: true,
+  Bundesliga: true,
+  'Ligue 1': true,
+  Championship: true,
+},
 };
 
 export function useSettings() {
