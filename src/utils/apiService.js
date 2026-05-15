@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────
 // utils/apiService.js
-// Real API calls — API-Football + The Odds API
+// Uses football-data.org — free, current season
 // ─────────────────────────────────────────────
 
 export const ENV = {
-  apiFootball: process.env.REACT_APP_API_FOOTBALL_KEY || '',
+  footballData: process.env.REACT_APP_FOOTBALLDATA_KEY || '',
   oddsApi: process.env.REACT_APP_ODDS_API_KEY || '',
   supabaseUrl: process.env.REACT_APP_SUPABASE_URL || '',
   supabaseKey: process.env.REACT_APP_SUPABASE_ANON_KEY || '',
@@ -12,127 +12,103 @@ export const ENV = {
 
 export function logEnvStatus() {
   console.group('EdgeBet — Environment Variables');
-  console.log('API_FOOTBALL_KEY:', ENV.apiFootball ? `✅ loaded (${ENV.apiFootball.slice(0,8)}...)` : '❌ MISSING');
-  console.log('ODDS_API_KEY:', ENV.oddsApi ? `✅ loaded (${ENV.oddsApi.slice(0,8)}...)` : '❌ MISSING');
+  console.log('FOOTBALLDATA_KEY:', ENV.footballData ? `✅ loaded (${ENV.footballData.slice(0,8)}...)` : '❌ MISSING');
+  console.log('ODDS_API_KEY:', ENV.oddsApi ? `✅ loaded` : '❌ MISSING');
   console.log('SUPABASE_URL:', ENV.supabaseUrl ? '✅ loaded' : '❌ MISSING');
   console.log('SUPABASE_KEY:', ENV.supabaseKey ? '✅ loaded' : '❌ MISSING');
   console.groupEnd();
 }
 
 export const LEAGUES = [
-  { name: 'Eliteserien', id: 103, country: 'Norway' },
-  { name: 'Allsvenskan', id: 113, country: 'Sweden' },
-  { name: 'Veikkausliiga', id: 244, country: 'Finland' },
-  { name: 'Eredivisie', id: 88, country: 'Netherlands' },
+  { name: 'Eredivisie', code: 'DED' },
+  { name: 'Bundesliga', code: 'BL1' },
+  { name: 'Ligue 1', code: 'FL1' },
+  { name: 'Championship', code: 'ELC' },
 ];
-
-export const ODDS_KEYS = {
-  Eliteserien: 'soccer_norway_eliteserien',
-  Allsvenskan: 'soccer_sweden_allsvenskan',
-  Veikkausliiga: 'soccer_finland_veikkausliiga',
-  Eredivisie: 'soccer_netherlands_eredivisie',
-};
 
 function today() {
   return new Date().toISOString().split('T')[0];
 }
 
-function season() {
-  return new Date().getFullYear();
-}
+async function fetchFixturesForLeague(code, leagueName) {
+  if (!ENV.footballData) throw new Error('No API key');
 
-export async function fetchFixturesForLeague(leagueId, leagueName) {
-  if (!ENV.apiFootball) {
-    throw new Error(`API-Football key missing`);
-  }
-  const url = `https://v3.football.api-sports.io/fixtures?league=${leagueId}&date=${today()}&season=${season()}`;
+  const url = `https://api.football-data.org/v4/matches?competitions=${code}&dateFrom=${today()}&dateTo=${today()}`;
   console.log(`Fetching ${leagueName}...`, url);
+
   const res = await fetch(url, {
-    headers: { 'x-apisports-key': ENV.apiFootball },
+    headers: { 'X-Auth-Token': ENV.footballData },
   });
+
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+
   const data = await res.json();
-  if (data.errors && Object.keys(data.errors).length > 0) {
-    throw new Error(JSON.stringify(data.errors));
-  }
-  console.log(`${leagueName}: ${data.response?.length || 0} fixtures`);
-  return data.response || [];
+  console.log(`${leagueName}: ${data.matches?.length || 0} fixtures`);
+  return data.matches || [];
 }
 
-export async function fetchTeamStats(teamId, leagueId) {
-  if (!ENV.apiFootball) return null;
+async function fetchTeamRecentForm(teamId) {
+  if (!ENV.footballData) return null;
   try {
     const res = await fetch(
-      `https://v3.football.api-sports.io/teams/statistics?team=${teamId}&league=${leagueId}&season=${season()}`,
-      { headers: { 'x-apisports-key': ENV.apiFootball } }
+      `https://api.football-data.org/v4/teams/${teamId}/matches?status=FINISHED&limit=10`,
+      { headers: { 'X-Auth-Token': ENV.footballData } }
     );
     if (!res.ok) return null;
     const data = await res.json();
-    const s = data.response;
-    if (!s) return null;
-    const played = s.fixtures?.played?.total || 1;
+    const matches = data.matches || [];
+    if (matches.length === 0) return null;
+
+    let scored = 0;
+    let conceded = 0;
+
+    matches.forEach((m) => {
+      const isHome = m.homeTeam?.id === teamId;
+      const homeGoals = m.score?.fullTime?.home ?? 0;
+      const awayGoals = m.score?.fullTime?.away ?? 0;
+      if (isHome) {
+        scored += homeGoals;
+        conceded += awayGoals;
+      } else {
+        scored += awayGoals;
+        conceded += homeGoals;
+      }
+    });
+
     return {
-      avgScored: +(( s.goals?.for?.total?.total || 0) / played).toFixed(2),
-      avgConceded: +((s.goals?.against?.total?.total || 0) / played).toFixed(2),
+      avgScored: +(scored / matches.length).toFixed(2),
+      avgConceded: +(conceded / matches.length).toFixed(2),
     };
-  } catch { return null; }
-}
-
-export async function fetchOver25Odds(sportKey) {
-  if (!ENV.oddsApi) return [];
-  try {
-    const res = await fetch(
-      `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${ENV.oddsApi}&regions=eu&markets=totals&oddsFormat=decimal`
-    );
-    if (!res.ok) return [];
-    return await res.json() || [];
-  } catch { return []; }
-}
-
-export function extractOver25Odds(oddsData, homeTeam, awayTeam) {
-  if (!oddsData?.length) return null;
-  const match = oddsData.find((m) => {
-    const h = m.home_team?.toLowerCase() || '';
-    const a = m.away_team?.toLowerCase() || '';
-    return h.includes(homeTeam.toLowerCase().split(' ')[0]) ||
-           a.includes(awayTeam.toLowerCase().split(' ')[0]);
-  });
-  if (!match) return null;
-  for (const bk of match.bookmakers || []) {
-    const market = bk.markets?.find((m) => m.key === 'totals');
-    const over = market?.outcomes?.find((o) => o.name === 'Over' && o.point === 2.5);
-    if (over) return over.price;
+  } catch {
+    return null;
   }
-  return null;
 }
 
-export async function transformFixture(apiFixture, leagueName) {
-  const home = apiFixture.teams?.home;
-  const away = apiFixture.teams?.away;
-  const leagueId = apiFixture.league?.id;
+function transformMatch(match, leagueName, homeStats, awayStats) {
+  const home = match.homeTeam?.name;
+  const away = match.awayTeam?.name;
   if (!home || !away) return null;
 
-  const [homeStats, awayStats] = await Promise.all([
-    fetchTeamStats(home.id, leagueId),
-    fetchTeamStats(away.id, leagueId),
-  ]);
-
-  const kickoff = apiFixture.fixture?.date
-    ? new Date(apiFixture.fixture.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const kickoff = match.utcDate
+    ? new Date(match.utcDate).toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
     : '--:--';
 
   return {
-    id: apiFixture.fixture?.id,
-    home: home.name,
-    away: away.name,
+    id: match.id,
+    home,
+    away,
     league: leagueName,
     time: kickoff,
-    homeAvgScored: homeStats?.avgScored ?? 1.4,
+    homeAvgScored: homeStats?.avgScored ?? 1.5,
     homeAvgConceded: homeStats?.avgConceded ?? 1.2,
     awayAvgScored: awayStats?.avgScored ?? 1.2,
-    awayAvgConceded: awayStats?.avgConceded ?? 1.4,
+    awayAvgConceded: awayStats?.avgConceded ?? 1.5,
     bookOdds: 1.85,
-    leagueId,
+    homeTeamId: match.homeTeam?.id,
+    awayTeamId: match.awayTeam?.id,
   };
 }
 
@@ -140,28 +116,31 @@ export async function fetchTodaysFixtures(enabledLeagues = {}) {
   const results = [];
   const errors = [];
 
+  if (!ENV.footballData) {
+    return {
+      fixtures: [],
+      errors: [{ league: 'All', error: 'No API key — add REACT_APP_FOOTBALLDATA_KEY in Vercel' }],
+    };
+  }
+
   for (const league of LEAGUES) {
     if (enabledLeagues[league.name] === false) continue;
+
     try {
-      const fixtures = await fetchFixturesForLeague(league.id, league.name);
-      const transformed = await Promise.all(
-        fixtures.map((f) => transformFixture(f, league.name))
+      const matches = await fetchFixturesForLeague(league.code, league.name);
+
+      // Fetch team form for each match in parallel
+      const enriched = await Promise.all(
+        matches.map(async (m) => {
+          const [homeStats, awayStats] = await Promise.all([
+            fetchTeamRecentForm(m.homeTeam?.id),
+            fetchTeamRecentForm(m.awayTeam?.id),
+          ]);
+          return transformMatch(m, league.name, homeStats, awayStats);
+        })
       );
-      const valid = transformed.filter(Boolean);
 
-      if (ENV.oddsApi && ODDS_KEYS[league.name]) {
-        try {
-          const oddsData = await fetchOver25Odds(ODDS_KEYS[league.name]);
-          valid.forEach((fix) => {
-            const odds = extractOver25Odds(oddsData, fix.home, fix.away);
-            if (odds) fix.bookOdds = odds;
-          });
-        } catch (e) {
-          console.warn(`Odds fetch failed for ${league.name}:`, e.message);
-        }
-      }
-
-      results.push(...valid);
+      results.push(...enriched.filter(Boolean));
     } catch (err) {
       console.error(`Failed ${league.name}:`, err.message);
       errors.push({ league: league.name, error: err.message });
@@ -173,32 +152,35 @@ export async function fetchTodaysFixtures(enabledLeagues = {}) {
 
 export async function checkApiStatus() {
   const status = {
-    apiFootball: { present: !!ENV.apiFootball, working: false, error: null },
+    footballData: { present: !!ENV.footballData, working: false, error: null },
     oddsApi: { present: !!ENV.oddsApi, working: false, error: null },
-    supabase: { present: !!(ENV.supabaseUrl && ENV.supabaseKey), working: false, error: null },
+    supabase: {
+      present: !!(ENV.supabaseUrl && ENV.supabaseKey),
+      working: false,
+      error: null,
+    },
   };
 
-  if (ENV.apiFootball) {
+  if (ENV.footballData) {
     try {
-      const res = await fetch('https://v3.football.api-sports.io/status', {
-        headers: { 'x-apisports-key': ENV.apiFootball },
+      const res = await fetch('https://api.football-data.org/v4/competitions', {
+        headers: { 'X-Auth-Token': ENV.footballData },
       });
-      const data = await res.json();
-      if (data.response?.account) {
-        status.apiFootball.working = true;
-        status.apiFootball.requestsToday = data.response.requests?.current;
-        status.apiFootball.requestsLimit = data.response.requests?.limit_day;
+      if (res.ok) {
+        status.footballData.working = true;
       } else {
-        status.apiFootball.error = 'Invalid key or no account found';
+        status.footballData.error = `HTTP ${res.status} — check your key`;
       }
     } catch (e) {
-      status.apiFootball.error = e.message;
+      status.footballData.error = e.message;
     }
   }
 
   if (ENV.oddsApi) {
     try {
-      const res = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${ENV.oddsApi}`);
+      const res = await fetch(
+        `https://api.the-odds-api.com/v4/sports/?apiKey=${ENV.oddsApi}`
+      );
       if (res.ok) {
         status.oddsApi.working = true;
         status.oddsApi.requestsRemaining = res.headers.get('x-requests-remaining');
