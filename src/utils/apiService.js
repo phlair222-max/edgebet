@@ -4,7 +4,8 @@
 // ─────────────────────────────────────────────
 
 export const ENV = {
-  footballData: process.env.REACT_APP_FOOTBALLDATA_KEY || '',
+  export const ENV = {
+  footballData: process.env.REACT_APP_FOOTBALLDATA_KEY || '36f65f997b7c4e698fe90b8741745505',
   oddsApi: process.env.REACT_APP_ODDS_API_KEY || '',
   supabaseUrl: process.env.REACT_APP_SUPABASE_URL || '',
   supabaseKey: process.env.REACT_APP_SUPABASE_ANON_KEY || '',
