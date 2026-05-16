@@ -27,10 +27,9 @@ function today() {
 
 async function fetchFixturesForLeague(code, leagueName) {
   if (!ENV.footballData) throw new Error('No API key');
-  const url = `https://api.football-data.org/v4/matches?competitions=${code}&dateFrom=${today()}&dateTo=${today()}`;
+  const url = `/api/fixtures?competitions=${code}&dateFrom=${today()}&dateTo=${today()}`;
   console.log(`Fetching ${leagueName}...`, url);
-  const res = await fetch(url, {
-    headers: { 'X-Auth-Token': ENV.footballData },
+  const res = await fetch(url);
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
   const data = await res.json();
